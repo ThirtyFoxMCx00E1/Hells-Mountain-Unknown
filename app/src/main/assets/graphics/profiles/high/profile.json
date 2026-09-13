@@ -1,0 +1,9 @@
+{
+  "preset": "high",
+  "texture_scale": 1.0,
+  "anisotropic": 4,
+  "shadows": 2,
+  "bloom": 0.75,
+  "rain": 1.0,
+  "shader_quality": 2
+}

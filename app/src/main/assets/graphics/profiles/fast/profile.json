@@ -1,0 +1,9 @@
+{
+  "preset": "fast",
+  "texture_scale": 0.5,
+  "anisotropic": 1,
+  "shadows": 0,
+  "bloom": 0,
+  "rain": 0.35,
+  "shader_quality": 0
+}

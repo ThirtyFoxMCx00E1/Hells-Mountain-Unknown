@@ -1,0 +1,5 @@
+// Unsolved Case high shader profile
+QUALITY 2
+TEXTURE_SCALE 1.0
+SHADOWS 2
+BLOOM 0.75

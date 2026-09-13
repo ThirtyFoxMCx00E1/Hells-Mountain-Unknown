@@ -1,0 +1,65 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace 'com.hellsmountainunknown.game'
+    compileSdk 36
+    ndkVersion '30.0.16248370'
+
+    defaultConfig {
+        applicationId "com.hellsmountainunknown.game"
+        minSdk 26
+        targetSdk 36
+        versionCode 4
+        versionName "0.4.0"
+
+        ndk {
+            abiFilters.addAll(['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'])
+        }
+    }
+
+    // Compile native code from source again now that real gameplay code
+    // (world/player/savegame) is being added - prebuilt jniLibs can't work
+    // for code that changes regularly during development.
+    // ANDROID_STL is set inside CMakeLists.txt itself (not here) - AGP 9's
+    // build-file DSL for externalNativeBuild.cmake.arguments has been a
+    // moving target across point releases, so it's set in CMake directly
+    // to avoid depending on that syntax.
+    externalNativeBuild {
+        cmake {
+            path file('src/main/cpp/CMakeLists.txt')
+            version '3.22.1'
+        }
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            jniDebuggable true
+        }
+
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile(
+                'proguard-android-optimize.txt'
+            ), 'proguard-rules.pro'
+        }
+    }
+
+    buildFeatures {
+        prefab false
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+}

@@ -1,0 +1,5 @@
+// Unsolved Case balanced shader profile
+QUALITY 1
+TEXTURE_SCALE 0.75
+SHADOWS 1
+BLOOM 0.35
