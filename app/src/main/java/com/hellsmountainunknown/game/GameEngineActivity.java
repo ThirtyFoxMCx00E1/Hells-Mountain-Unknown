@@ -55,7 +55,7 @@ public final class GameEngineActivity extends Activity
     private boolean loadNativeSafely() {
         if (nativeLoaded) return true;
         try {
-            System.loadLibrary("unsolvedcase");
+            System.loadLibrary("HellsMT");
             nativeLoaded = true;
             return true;
         } catch (Throwable t) {

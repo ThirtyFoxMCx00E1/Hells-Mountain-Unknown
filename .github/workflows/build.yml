@@ -33,9 +33,9 @@ jobs:
           set -e
           APK=app/build/outputs/apk/debug/app-debug.apk
           test -f "$APK"
-          unzip -l "$APK" | grep -E 'lib/(armeabi-v7a|arm64-v8a|x86|x86_64)/libunsolvedcase\.so$' | sort
+          unzip -l "$APK" | grep -E 'lib/(armeabi-v7a|arm64-v8a|x86|x86_64)/libHellsMT\.so$' | sort
           for abi in armeabi-v7a arm64-v8a x86 x86_64; do
-            unzip -l "$APK" | grep -q "lib/$abi/libunsolvedcase.so"
+            unzip -l "$APK" | grep -q "lib/$abi/libHellsMT.so"
           done
 
       - name: Upload APK

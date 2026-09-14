@@ -8,33 +8,34 @@ cmake_minimum_required(VERSION 3.22.1)
 # own cmake.arguments, AGP doesn't know shared STL is in use and won't
 # auto-bundle libc++_shared.so into the APK - the CI check caught this as
 # a missing runtime dependency that would have crashed on load. Static
-# linking bakes the STL directly into libunsolvedcase.so instead, so
-# there's no separate runtime dependency to bundle. This project has only
-# one native library, so the usual "don't use static STL with multiple
-# .so files" caveat doesn't apply here.
+# linking bakes the STL directly into the library instead, so there's no
+# separate runtime dependency to bundle. This project has only one native
+# library, so the usual "don't use static STL with multiple .so files"
+# caveat doesn't apply here.
 set(ANDROID_STL "c++_static" CACHE STRING "" FORCE)
 
-project(unsolvedcase LANGUAGES C CXX)
+project(HellsMT LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_library(unsolvedcase SHARED
+add_library(HellsMT SHARED
     main.cpp
     renderer.cpp
     audio_engine.cpp
     world.cpp
     player.cpp
     savegame.cpp
+    spawn.cpp
 )
 
-target_compile_options(unsolvedcase PRIVATE
+target_compile_options(HellsMT PRIVATE
     -Wall
     -Wextra
     -Wno-unused-parameter
 )
 
-target_link_libraries(unsolvedcase PRIVATE
+target_link_libraries(HellsMT PRIVATE
     EGL
     GLESv3
     android

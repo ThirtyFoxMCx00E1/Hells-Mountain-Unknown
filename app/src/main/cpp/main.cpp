@@ -58,18 +58,14 @@ void ApplyPendingSpawn(Renderer& renderer) {
     gSpawnPending = false;
 
     if (gSpawnIsNewGame) {
-        // Spawn point: a modest height above the terrain's average height
-        // near its center. The terrain's own bounds vary per-mesh, so this
-        // is a reasonable fixed default until a proper spawn-point system
-        // exists.
-        renderer.GetPlayer().Reset(240.0f, 12.0f, -450.0f, 0.0f);
+        renderer.SpawnNewGame();
     } else {
         SaveGame::PlayerState state;
         if (SaveGame::LoadSlot(gFilesDir.c_str(), gSpawnSlot, &state)) {
             renderer.GetPlayer().Reset(state.x, state.y, state.z, state.yawDeg);
         } else {
             LOGE("Continue requested but slot %d had no valid save; using default spawn", gSpawnSlot);
-            renderer.GetPlayer().Reset(240.0f, 12.0f, -450.0f, 0.0f);
+            renderer.SpawnNewGame();
         }
     }
 }

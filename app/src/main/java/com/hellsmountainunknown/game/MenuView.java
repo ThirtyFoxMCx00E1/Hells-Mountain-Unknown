@@ -403,13 +403,13 @@ public final class MenuView extends View {
         p.setTypeface(Typeface.MONOSPACE);
         p.setTextSize(h * 0.032f);
         p.setColor((a << 24) | 0x00b8b9bd);
-        c.drawText("AUDIO", w * 0.34f, h * 0.40f, p);
-        c.drawText("MUSIC          80%", w * 0.34f, h * 0.48f, p);
-        c.drawText("EFFECTS        90%", w * 0.34f, h * 0.55f, p);
-        c.drawText("GRAPHICS       " + graphicsNames[graphicsTier], w * 0.34f, h * 0.64f, p);
-        c.drawText("TAP GRAPHICS TO CYCLE QUALITY", w * 0.34f, h * 0.69f, p);
-        c.drawText("TOUCH / GAMEPAD   ON", w * 0.34f, h * 0.71f, p);
-        c.drawText("TAP ANYWHERE TO RETURN", w * 0.34f, h * 0.78f, p);
+        c.drawText("AUDIO", w * 0.34f, h * 0.38f, p);
+        c.drawText("MUSIC          80%", w * 0.34f, h * 0.46f, p);
+        c.drawText("EFFECTS        90%", w * 0.34f, h * 0.53f, p);
+        c.drawText("GRAPHICS       " + graphicsNames[graphicsTier], w * 0.34f, h * 0.62f, p);
+        c.drawText("TAP GRAPHICS TO CYCLE QUALITY", w * 0.34f, h * 0.68f, p);
+        c.drawText("TOUCH / GAMEPAD   ON", w * 0.34f, h * 0.75f, p);
+        c.drawText("TAP ANYWHERE TO RETURN", w * 0.34f, h * 0.81f, p);
     }
 
     private static float clamp01(float value) {

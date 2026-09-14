@@ -229,6 +229,12 @@ void Renderer::EnsureWorldLoaded() {
     }
 }
 
+void Renderer::SpawnNewGame() {
+    Spawn::Point p = Spawn::DefaultSpawn(world_);
+    player_.Reset(p.x, p.y, p.z, p.yawDeg);
+    LOGI("Spawned new game at (%.1f, %.1f, %.1f)", p.x, p.y, p.z);
+}
+
 void Renderer::OnWindowTerm() {
     if (display_ != EGL_NO_DISPLAY) {
         eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);

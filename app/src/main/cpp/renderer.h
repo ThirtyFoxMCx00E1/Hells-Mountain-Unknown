@@ -9,6 +9,7 @@
 #include "quality_settings.h"
 #include "world.h"
 #include "player.h"
+#include "spawn.h"
 
 // Owns the EGL context/surface and the GLES3 draw calls. One instance per
 // app lifetime; call OnWindowInit/OnWindowTerm as the native window comes
@@ -32,6 +33,11 @@ public:
 
     Player& GetPlayer() { return player_; }
     void SetPlayerInput(const Player::Input& input) { pendingInput_ = input; }
+
+    // Places the player at the world's actual default spawn point (see
+    // spawn.cpp). Only meaningful after the world has loaded; safe to call
+    // before that too, but will fall back to the origin until it has.
+    void SpawnNewGame();
 
 private:
     bool InitEglContext();
