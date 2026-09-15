@@ -319,7 +319,7 @@ void Renderer::DrawFrame(double elapsedSeconds, double dtSeconds) {
     Mat4 model = Identity();
     Mat4 view = LookAt(eye.x, eye.y, eye.z, lookX, lookY, lookZ);
     float aspect = height_ > 0 ? static_cast<float>(width_) / height_ : 1.0f;
-    Mat4 proj = Perspective(1.1f, aspect, 0.1f, 500.0f);
+    Mat4 proj = Perspective(1.1f, aspect, 0.1f, quality_.viewDistance);
     Mat4 mvp = Multiply(Multiply(proj, view), model);
 
     GLint mvpLoc = glGetUniformLocation(program, "uMVP");

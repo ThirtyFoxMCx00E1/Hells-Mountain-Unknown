@@ -86,6 +86,12 @@ public final class MenuView extends View {
     private long fadeOutStartedAt = -1;
     private boolean pendingNewGame = false;
 
+    public interface Listener {
+        void onSettingsRequested();
+    }
+    private Listener listener;
+    public void setListener(Listener l) { this.listener = l; }
+
     public MenuView(Context context) {
         super(context);
         setFocusable(true);
@@ -564,8 +570,7 @@ public final class MenuView extends View {
                 launchGame(false);
                 break;
             case 1:
-                panelTitle = "SETTINGS";
-                panelVisible = true;
+                if (listener != null) listener.onSettingsRequested();
                 break;
             case 2:
                 status = "NEW GAME";

@@ -31,6 +31,7 @@ public final class GameEngineActivity extends Activity
     private View fadeInOverlay;
     private boolean fadeInStarted;
     private PauseMenuView pauseMenuView;
+    private SettingsView settingsView;
     private boolean nativeLoaded;
     private boolean stopping;
     private boolean started;
@@ -45,7 +46,8 @@ public final class GameEngineActivity extends Activity
 
     private static native void nativeSetQuality(int tier);
     private static native void nativeStartRun(AssetManager assetManager, String filesDir,
-                                               boolean isNewGame, int slot);
+                                               boolean isNewGame, int slot,
+                                               int qualityTier, float viewDistance);
     private static native void nativeSetSurface(Surface surface);
     private static native void nativeStop();
     private static native void nativeSetMoveAxis(float forward, float strafe);
@@ -82,12 +84,19 @@ public final class GameEngineActivity extends Activity
         boolean isNewGame = getIntent().getBooleanExtra(EXTRA_NEW_GAME, true);
         int slot = getIntent().getIntExtra(EXTRA_SLOT, 1);
 
-        try { nativeSetQuality(detectQualityTier()); } catch (Throwable t) {
-            android.util.Log.e("HellsMountainUnknown", "Quality setup failed", t);
+        int qualityTier = GameSettings.qualityTier(this);
+        if (qualityTier < 0) {
+            // Never chosen by the player yet - auto-detect once and save it
+            // as their starting default so future launches (and the
+            // Settings UI) have a real value to show, not "unset".
+            qualityTier = detectQualityTier();
+            GameSettings.setQualityTier(this, qualityTier);
         }
+        float viewDistance = GameSettings.viewDistanceWorldUnits(GameSettings.viewDistanceIndex(this));
 
         try {
-            nativeStartRun(getAssets(), getFilesDir().getAbsolutePath(), isNewGame, slot);
+            nativeStartRun(getAssets(), getFilesDir().getAbsolutePath(), isNewGame, slot,
+                    qualityTier, viewDistance);
             started = true;
         } catch (Throwable t) {
             android.util.Log.e("HellsMountainUnknown", "nativeStartRun failed", t);
@@ -161,7 +170,7 @@ public final class GameEngineActivity extends Activity
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (pauseMenuView != null) return super.onTouchEvent(event);
+        if (pauseMenuView != null || settingsView != null) return super.onTouchEvent(event);
         if (!started) return super.onTouchEvent(event);
 
         int action = event.getActionMasked();
@@ -229,6 +238,10 @@ public final class GameEngineActivity extends Activity
 
     @Override
     public void onBackPressed() {
+        if (settingsView != null) {
+            closeSettings();
+            return;
+        }
         if (pauseMenuView != null) {
             if (pauseMenuView.handleBack()) return; // consumed - e.g. closed a sub-panel
             closePauseMenu();
@@ -251,6 +264,9 @@ public final class GameEngineActivity extends Activity
             @Override public void onResumeGame() {
                 closePauseMenu();
             }
+            @Override public void onOptionsRequested() {
+                openSettings();
+            }
         });
         root.addView(pauseMenuView, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -260,6 +276,20 @@ public final class GameEngineActivity extends Activity
         if (pauseMenuView == null || root == null) return;
         root.removeView(pauseMenuView);
         pauseMenuView = null;
+    }
+
+    private void openSettings() {
+        if (root == null || settingsView != null) return;
+        settingsView = new SettingsView(this, surfaceView, () -> closeSettings());
+        root.addView(settingsView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    private void closeSettings() {
+        if (settingsView == null || root == null) return;
+        settingsView.onClosing();
+        root.removeView(settingsView);
+        settingsView = null;
     }
 
     @Override protected void onDestroy() {

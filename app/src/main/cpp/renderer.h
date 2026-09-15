@@ -25,6 +25,7 @@ public:
 
     void SetQuality(GraphicsQuality tier) { quality_ = QualitySettings::ForTier(tier); }
     const QualitySettings& Quality() const { return quality_; }
+    void SetViewDistance(float distance) { quality_.viewDistance = distance; }
 
     // Loads the terrain from assets. Safe to call before or after
     // OnWindowInit - if there's no GL context yet, geometry upload happens

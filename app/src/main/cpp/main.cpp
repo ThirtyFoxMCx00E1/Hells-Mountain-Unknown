@@ -12,6 +12,7 @@
 
 #include "renderer.h"
 #include "savegame.h"
+#include "settings.h"
 
 #define LOG_TAG "HellsMountainUnknown"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -24,6 +25,7 @@ ANativeWindow* gWindow = nullptr;
 std::thread gRenderThread;
 bool gRunning = false;
 std::atomic<int> gQualityTier{1};
+std::atomic<float> gViewDistance{800.0f};
 
 Renderer* gRenderer = nullptr;  // owned by RenderLoop's local; raw pointer
                                  // used only for cross-thread save requests,
@@ -45,12 +47,6 @@ int gSpawnSlot = 1;
 // with window-lifecycle locking.
 std::mutex gInputMutex;
 Player::Input gPendingInput;
-
-GraphicsQuality TierFromInt(int tier) {
-    if (tier <= 0) return GraphicsQuality::kLightweight;
-    if (tier >= 2) return GraphicsQuality::kHigh;
-    return GraphicsQuality::kBalanced;
-}
 
 void ApplyPendingSpawn(Renderer& renderer) {
     std::lock_guard<std::mutex> lock(gSpawnMutex);
@@ -110,7 +106,9 @@ void RenderLoop(AAssetManager* assetManager) {
 
             activeWindow = nextWindow;
             if (activeWindow) {
-                renderer.SetQuality(TierFromInt(gQualityTier.load()));
+                renderer.SetQuality(RuntimeSettings::TierFromInt(gQualityTier.load()));
+                renderer.SetViewDistance(
+                    RuntimeSettingsValidation::ClampViewDistance(gViewDistance.load()));
                 rendererHasWindow = renderer.OnWindowInit(activeWindow);
                 if (!rendererHasWindow) {
                     LOGE("Native renderer could not initialize; Java activity remains alive");
@@ -178,8 +176,11 @@ Java_com_hellsmountainunknown_game_GameEngineActivity_nativeSetQuality(
 extern "C" JNIEXPORT void JNICALL
 Java_com_hellsmountainunknown_game_GameEngineActivity_nativeStartRun(
         JNIEnv* env, jclass, jobject assetManagerJava, jstring filesDirJava,
-        jboolean isNewGame, jint slot) {
+        jboolean isNewGame, jint slot, jint qualityTier, jfloat viewDistance) {
     AAssetManager* assetManager = AAssetManager_fromJava(env, assetManagerJava);
+
+    gQualityTier.store(static_cast<int>(qualityTier), std::memory_order_release);
+    gViewDistance.store(static_cast<float>(viewDistance), std::memory_order_release);
 
     const char* dirChars = env->GetStringUTFChars(filesDirJava, nullptr);
     {
@@ -256,7 +257,7 @@ static JNINativeMethod kNativeMethods[] = {
     { const_cast<char*>("nativeSetQuality"), const_cast<char*>("(I)V"),
       reinterpret_cast<void*>(Java_com_hellsmountainunknown_game_GameEngineActivity_nativeSetQuality) },
     { const_cast<char*>("nativeStartRun"),
-      const_cast<char*>("(Landroid/content/res/AssetManager;Ljava/lang/String;ZI)V"),
+      const_cast<char*>("(Landroid/content/res/AssetManager;Ljava/lang/String;ZIIF)V"),
       reinterpret_cast<void*>(Java_com_hellsmountainunknown_game_GameEngineActivity_nativeStartRun) },
     { const_cast<char*>("nativeSetSurface"), const_cast<char*>("(Landroid/view/Surface;)V"),
       reinterpret_cast<void*>(Java_com_hellsmountainunknown_game_GameEngineActivity_nativeSetSurface) },

@@ -27,6 +27,7 @@ add_library(HellsMT SHARED
     player.cpp
     savegame.cpp
     spawn.cpp
+    settings.cpp
 )
 
 target_compile_options(HellsMT PRIVATE

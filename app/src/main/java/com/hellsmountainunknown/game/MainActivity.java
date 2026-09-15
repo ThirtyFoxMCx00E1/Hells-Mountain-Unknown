@@ -9,6 +9,7 @@ import android.os.Looper;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
@@ -26,6 +27,7 @@ public class MainActivity extends android.app.Activity {
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private MenuView menuView;
+    private SettingsView settingsView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,6 +83,7 @@ public class MainActivity extends android.app.Activity {
             try {
                 root.removeAllViews();
                 menuView = new MenuView(this);
+                menuView.setListener(this::openSettings);
                 root.addView(menuView,
                         new FrameLayout.LayoutParams(
                                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -108,6 +111,29 @@ public class MainActivity extends android.app.Activity {
         if (menuView != null) {
             try { menuView.resumeMusic(); } catch (Throwable ignored) {}
         }
+    }
+
+    private void openSettings() {
+        if (root == null || settingsView != null) return;
+        settingsView = new SettingsView(this, menuView, () -> closeSettings());
+        root.addView(settingsView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    private void closeSettings() {
+        if (settingsView == null || root == null) return;
+        settingsView.onClosing();
+        root.removeView(settingsView);
+        settingsView = null;
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (settingsView != null) {
+            closeSettings();
+            return;
+        }
+        super.onBackPressed();
     }
 
     @Override

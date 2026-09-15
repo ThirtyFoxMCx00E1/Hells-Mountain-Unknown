@@ -21,6 +21,7 @@ public final class PauseMenuView extends View {
         void onSaveSlotChosen(int slot);
         void onExitToMenu();
         void onResumeGame();
+        void onOptionsRequested();
     }
 
     private static final String[] TOP_BUTTONS = {"SAVE GAME", "OPTIONS", "EXIT"};
@@ -133,8 +134,7 @@ public final class PauseMenuView extends View {
                         invalidate();
                         return true;
                     case 1: // OPTIONS
-                        graphicsTier = (graphicsTier + 1) % 3;
-                        invalidate();
+                        listener.onOptionsRequested();
                         return true;
                     case 2: // EXIT
                         listener.onExitToMenu();
