@@ -75,6 +75,13 @@ public final class SettingsView extends View {
     private Row[] currentRows;
     private Row draggingSlider = null;
     private View blurTarget;
+    private float scrollOffset = 0f;
+    private float maxScrollOffset = 0f;
+    private float rowAreaTop = 0f, rowAreaBottom = 0f;
+    private boolean isScrolling = false;
+    private float touchStartY = 0f;
+    private float scrollStartOffset = 0f;
+    private static final float TAP_SLOP = 16f;
 
     private float popAnim = 0f; // 0..1, pop-in progress
 
@@ -120,6 +127,7 @@ public final class SettingsView extends View {
     }
 
     private void rebuildRows() {
+        scrollOffset = 0f;
         switch (activeTab) {
             case VIDEO: currentRows = buildVideoRows(); break;
             case CONTROL: currentRows = buildControlRows(); break;
@@ -251,7 +259,8 @@ public final class SettingsView extends View {
         c.drawRect(0, 0, w, h, p);
 
         RectF panel = new RectF(w * 0.06f, h * 0.08f, w * 0.94f, h * 0.92f);
-        p.setColor((alpha << 24) | 0x000b0d0f);
+        int panelAlpha = (int) (208 * popAnim); // semi-transparent even at full pop-in, so the blurred background stays visible through it - matches the reference image rather than a fully opaque panel
+        p.setColor((panelAlpha << 24) | 0x000b0d0f);
         c.drawRoundRect(panel, 12f, 12f, p);
         p.setStyle(Paint.Style.STROKE);
         p.setStrokeWidth(2f);
@@ -291,51 +300,86 @@ public final class SettingsView extends View {
 
     private void drawRows(Canvas c, RectF panel, int alpha) {
         float rowH = panel.height() * 0.085f;
-        float y = panel.top + panel.height() * 0.16f;
+        float startY = panel.top + panel.height() * 0.16f;
         float leftX = panel.left + panel.width() * 0.04f;
         float valueX = panel.left + panel.width() * 0.58f;
         float rowW = panel.width() * 0.60f;
 
+        rowAreaTop = startY;
+        rowAreaBottom = panel.bottom - panel.height() * 0.12f; // leave room for footer buttons
+
+        // First pass: lay out unscrolled positions so we know total content
+        // height (needed to clamp how far scrolling can go).
+        float y = startY;
         for (Row row : currentRows) {
             row.top = y;
-            row.bottom = y + rowH;
+            y += (row.type == RowType.HEADER) ? rowH * 0.85f : rowH;
+            row.bottom = y;
+        }
+        float contentHeight = y - startY;
+        float visibleHeight = rowAreaBottom - rowAreaTop;
+        maxScrollOffset = Math.max(0f, contentHeight - visibleHeight);
+        scrollOffset = Math.max(0f, Math.min(maxScrollOffset, scrollOffset));
+
+        c.save();
+        c.clipRect(panel.left, rowAreaTop, panel.right, rowAreaBottom);
+
+        for (Row row : currentRows) {
+            // Overwrite with SCROLLED screen position - this is what touch
+            // hit-testing uses too, so scrolling and tapping stay in sync
+            // without extra offset math at tap time.
+            float rowTop = row.top - scrollOffset;
+            float rowBottom = row.bottom - scrollOffset;
+            row.top = rowTop;
+            row.bottom = rowBottom;
+
+            if (rowBottom < rowAreaTop - rowH || rowTop > rowAreaBottom + rowH) continue; // off-screen
 
             if (row.type == RowType.HEADER) {
                 p.setTypeface(Typeface.create(Typeface.MONOSPACE, Typeface.BOLD));
                 p.setTextSize(rowH * 0.42f);
                 p.setColor((alpha << 24) | 0x00d71925);
-                c.drawText(row.label, leftX, y + rowH * 0.55f, p);
-                y += rowH * 0.85f;
+                c.drawText(row.label, leftX, rowTop + rowH * 0.55f, p);
                 continue;
             }
 
             p.setTypeface(Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL));
             p.setTextSize(rowH * 0.34f);
             p.setColor((alpha << 24) | 0x00bfc0c4);
-            c.drawText(row.label, leftX, y + rowH * 0.62f, p);
+            c.drawText(row.label, leftX, rowTop + rowH * 0.62f, p);
 
             switch (row.type) {
                 case DROPDOWN: {
                     int idx = row.dropdownGet.get();
                     String val = row.options[Math.max(0, Math.min(row.options.length - 1, idx))];
                     p.setColor((alpha << 24) | 0x00ffffff);
-                    c.drawText("<  " + val + "  >", valueX, y + rowH * 0.62f, p);
+                    c.drawText("<  " + val + "  >", valueX, rowTop + rowH * 0.62f, p);
                     break;
                 }
                 case TOGGLE: {
                     boolean on = row.toggleGet.get();
                     p.setColor((alpha << 24) | (on ? 0x0043c463 : 0x00707478));
-                    c.drawText(on ? "ON" : "OFF", valueX, y + rowH * 0.62f, p);
+                    c.drawText(on ? "ON" : "OFF", valueX, rowTop + rowH * 0.62f, p);
                     break;
                 }
                 case SLIDER: {
-                    drawSliderTrack(c, row, valueX, rowW * 0.7f, y + rowH * 0.5f, alpha);
+                    drawSliderTrack(c, row, valueX, rowW * 0.7f, rowTop + rowH * 0.5f, alpha);
                     break;
                 }
                 default:
                     break;
             }
-            y += rowH;
+        }
+        c.restore();
+
+        if (maxScrollOffset > 0f) {
+            float trackX = panel.right - 14f;
+            float thumbH = Math.max(30f, visibleHeight * (visibleHeight / contentHeight));
+            float thumbY = rowAreaTop + (visibleHeight - thumbH) * (scrollOffset / maxScrollOffset);
+            p.setColor((alpha << 24) | 0x00303438);
+            c.drawRoundRect(new RectF(trackX, rowAreaTop, trackX + 4f, rowAreaBottom), 2f, 2f, p);
+            p.setColor((alpha << 24) | 0x00d71925);
+            c.drawRoundRect(new RectF(trackX, thumbY, trackX + 4f, thumbY + thumbH), 2f, 2f, p);
         }
     }
 
@@ -371,10 +415,11 @@ public final class SettingsView extends View {
         float btnW = (panel.width() - 4 * gap) / 3f;
 
         String[] labels = {"BACK", "APPLY", "RESET DEFAULT"};
+        int btnFillAlpha = (int) (110 * popAnim); // transparent button fill, per the reference image
         for (int i = 0; i < 3; i++) {
             float x = panel.left + gap + i * (btnW + gap);
             RectF btn = new RectF(x, btnY, x + btnW, btnY + btnH);
-            p.setColor((alpha << 24) | 0x00202428);
+            p.setColor((btnFillAlpha << 24) | 0x00202428);
             c.drawRoundRect(btn, 8f, 8f, p);
             p.setStyle(Paint.Style.STROKE);
             p.setColor((alpha << 24) | 0x004c555a);
@@ -404,16 +449,35 @@ public final class SettingsView extends View {
                     return true;
                 }
             }
-        } else if (e.getAction() == MotionEvent.ACTION_MOVE && draggingSlider != null) {
-            updateSliderFromTouch(draggingSlider, panel, e.getX());
-            invalidate();
+            if (e.getY() >= rowAreaTop && e.getY() <= rowAreaBottom) {
+                touchStartY = e.getY();
+                scrollStartOffset = scrollOffset;
+                isScrolling = false; // becomes true only once movement exceeds TAP_SLOP
+            }
+            return true;
+        } else if (e.getAction() == MotionEvent.ACTION_MOVE) {
+            if (draggingSlider != null) {
+                updateSliderFromTouch(draggingSlider, panel, e.getX());
+                invalidate();
+                return true;
+            }
+            float delta = touchStartY - e.getY();
+            if (isScrolling || Math.abs(delta) > TAP_SLOP) {
+                isScrolling = true;
+                scrollOffset = Math.max(0f, Math.min(maxScrollOffset, scrollStartOffset + delta));
+                invalidate();
+            }
             return true;
         } else if (e.getAction() == MotionEvent.ACTION_UP || e.getAction() == MotionEvent.ACTION_CANCEL) {
             if (draggingSlider != null) {
                 draggingSlider = null;
                 return true;
             }
-            handleTap(e.getX(), e.getY(), panel);
+            boolean wasScrolling = isScrolling;
+            isScrolling = false;
+            if (!wasScrolling) {
+                handleTap(e.getX(), e.getY(), panel);
+            }
             return true;
         }
         return true;

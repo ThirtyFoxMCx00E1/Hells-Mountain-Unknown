@@ -28,6 +28,7 @@ public class MainActivity extends android.app.Activity {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private MenuView menuView;
     private SettingsView settingsView;
+    private FrameLayout root;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,7 +51,7 @@ public class MainActivity extends android.app.Activity {
 
         // First frame: absolutely minimal Android UI.
         // Do not construct MenuView until the Activity has reached RESUMED.
-        FrameLayout root = new FrameLayout(this);
+        root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
         setContentView(root);
 
