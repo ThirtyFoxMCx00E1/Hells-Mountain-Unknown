@@ -46,22 +46,31 @@ in vec3 vNormal;
 in vec3 vWorldPos;
 out vec4 fragColor;
 uniform vec3 uBaseColor;
-uniform vec3 uLightPositions[4];
-uniform vec3 uLightColors[4];
-uniform int uLightCount;
+uniform vec3 uSunDirection; // normalized, points FROM surface TOWARD the sun
+uniform vec3 uSunColor;
+uniform vec3 uSkyColor;
 void main() {
     vec3 n = normalize(vNormal);
-    vec3 result = uBaseColor * 0.08;
-    for (int i = 0; i < 4; i++) {
-        if (i >= uLightCount) break;
-        vec3 toLight = uLightPositions[i] - vWorldPos;
-        float dist = length(toLight);
-        vec3 lightDir = toLight / max(dist, 0.001);
-        float attenuation = 1.0 / (1.0 + 0.15 * dist + 0.05 * dist * dist);
-        float diffuse = max(dot(n, lightDir), 0.0);
-        result += uBaseColor * uLightColors[i] * diffuse * attenuation;
-    }
-    fragColor = vec4(result, 1.0);
+
+    // Directional sun light: correct for outdoor terrain at any scale,
+    // since real sunlight doesn't fall off with in-scene distance the way
+    // a nearby point light does. (The previous point-light model placed
+    // lights a few dozen units from the origin with quadratic falloff -
+    // fine for a small placeholder object, but at terrain distances of
+    // hundreds of units the attenuation term collapsed to near zero,
+    // which is why the world was almost black even at "balanced" quality.)
+    float sunDiffuse = max(dot(n, uSunDirection), 0.0);
+
+    // Hemisphere ambient: upward-facing surfaces pick up sky-blue tint,
+    // downward-facing surfaces stay in a warmer, darker ground tone.
+    // Overall ambient level raised roughly 50% versus the previous flat
+    // 0.08 term, per the brightness request.
+    float skyFactor = n.y * 0.5 + 0.5;
+    vec3 groundAmbient = vec3(0.10, 0.09, 0.085);
+    vec3 ambient = uBaseColor * mix(groundAmbient, uSkyColor * 0.22, skyFactor);
+
+    vec3 sunLight = uBaseColor * uSunColor * sunDiffuse;
+    fragColor = vec4(ambient + sunLight, 1.0);
 }
 )";
 
@@ -303,7 +312,12 @@ void Renderer::DrawFrame(double elapsedSeconds, double dtSeconds) {
     pendingInput_.lookDeltaYaw = 0.0f;
     pendingInput_.lookDeltaPitch = 0.0f;
 
-    glClearColor(0.03f, 0.03f, 0.045f, 1.0f);
+    // Daytime sky blue instead of near-black - there's no skybox geometry
+    // yet, so this flat color is what shows wherever the terrain doesn't
+    // cover the view. A gradient/cloud skybox would need actual texture
+    // assets and a dedicated render pass - a reasonable next step, but
+    // this directly fixes "no visible sky" for now.
+    glClearColor(0.45f, 0.68f, 0.88f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     GLuint program = (quality_.tier == GraphicsQuality::kLightweight) ? programLightweight_ : programBalanced_;
@@ -331,19 +345,13 @@ void Renderer::DrawFrame(double elapsedSeconds, double dtSeconds) {
     glUniform3f(colorLoc, 0.32f, 0.36f, 0.26f);
 
     if (quality_.tier != GraphicsQuality::kLightweight) {
-        float lightPos[4 * 3] = {
-            20.0f, 40.0f, 20.0f,
-            -20.0f, 25.0f, -15.0f,
-            0, 0, 0, 0, 0, 0
-        };
-        float lightColor[4 * 3] = {
-            1.0f, 0.95f, 0.85f,  // sun
-            0.4f, 0.45f, 0.6f,   // sky fill
-            0, 0, 0, 0, 0, 0
-        };
-        glUniform3fv(glGetUniformLocation(program, "uLightPositions"), 4, lightPos);
-        glUniform3fv(glGetUniformLocation(program, "uLightColors"), 4, lightColor);
-        glUniform1i(glGetUniformLocation(program, "uLightCount"), 2);
+        // Fixed mid-morning sun angle - consistent lighting regardless of
+        // player position, since this is a directional light (sun),
+        // unlike the old point lights which only lit a small area near
+        // their arbitrary world-space position.
+        glUniform3f(glGetUniformLocation(program, "uSunDirection"), 0.3771f, 0.8081f, 0.4525f);
+        glUniform3f(glGetUniformLocation(program, "uSunColor"), 1.15f, 1.08f, 0.95f);
+        glUniform3f(glGetUniformLocation(program, "uSkyColor"), 0.55f, 0.75f, 0.95f);
     }
 
     world_.Draw();

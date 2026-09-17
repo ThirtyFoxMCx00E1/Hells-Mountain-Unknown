@@ -76,26 +76,106 @@ public class MainActivity extends android.app.Activity {
             }, 900);
         }
 
-        mainHandler.post(() -> {
-            if (isFinishing() || (Build.VERSION.SDK_INT >= 17 && isDestroyed())) {
-                return;
-            }
+        mainHandler.post(this::startStudioIntro);
 
-            try {
-                root.removeAllViews();
-                menuView = new MenuView(this);
-                menuView.setListener(this::openSettings);
-                root.addView(menuView,
-                        new FrameLayout.LayoutParams(
-                                FrameLayout.LayoutParams.MATCH_PARENT,
-                                FrameLayout.LayoutParams.MATCH_PARENT));
-            } catch (Throwable ignored) {
-                // Never let an optional menu/art failure kill the launcher.
-                // Keep the already-visible black Android frame alive.
-                root.setBackgroundColor(Color.BLACK);
-            }
-        });
+    }
 
+    /**
+     * Studio intro sequence, plays once before the existing logo+menu intro:
+     * black -> video fades in (7s) -> video fades to black (6s) -> menu
+     * fades in (3s). The video clip itself is only ~3s so IntroVideoView
+     * loops it to fill the longer fade timeline around it.
+     *
+     * Timing is a direct implementation of what was requested; if any of
+     * the three durations feel off once you see it running, they're each
+     * a single number below - easy to adjust.
+     */
+    private static final long INTRO_FADE_IN_MS = 7000L;
+    private static final long INTRO_FADE_OFF_MS = 6000L;
+    private static final long INTRO_TO_MENU_FADE_MS = 3000L;
+
+    private void startStudioIntro() {
+        if (isFinishing() || (Build.VERSION.SDK_INT >= 17 && isDestroyed())) return;
+
+        try {
+            IntroVideoView videoView = new IntroVideoView(this, null);
+            root.addView(videoView, new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+            View blackOverlay = new View(this);
+            blackOverlay.setBackgroundColor(0xff000000);
+            blackOverlay.setAlpha(1f);
+            root.addView(blackOverlay, new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+            blackOverlay.animate()
+                    .alpha(0f)
+                    .setDuration(INTRO_FADE_IN_MS)
+                    .withEndAction(() -> {
+                        if (isFinishing() || (Build.VERSION.SDK_INT >= 17 && isDestroyed())) return;
+                        blackOverlay.animate()
+                                .alpha(1f)
+                                .setDuration(INTRO_FADE_OFF_MS)
+                                .withEndAction(() -> finishStudioIntro(videoView, blackOverlay))
+                                .start();
+                    })
+                    .start();
+        } catch (Throwable t) {
+            // Studio intro is a nice-to-have, never worth blocking the
+            // launcher over - skip straight to the main menu if it fails.
+            android.util.Log.e("HellsMountainUnknown", "Studio intro failed, skipping", t);
+            showMainMenu();
+        }
+    }
+
+    private void finishStudioIntro(IntroVideoView videoView, View blackOverlay) {
+        if (isFinishing() || (Build.VERSION.SDK_INT >= 17 && isDestroyed())) return;
+
+        try {
+            videoView.release();
+            root.removeView(videoView);
+        } catch (Throwable ignored) {
+        }
+
+        try {
+            menuView = new MenuView(this);
+            menuView.setListener(this::openSettings);
+            // Insert below the still-opaque black overlay so the overlay
+            // fading out is what reveals the menu (and its own existing
+            // logo intro underneath).
+            root.addView(menuView, 0, new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        } catch (Throwable ignored) {
+            root.setBackgroundColor(Color.BLACK);
+        }
+
+        blackOverlay.animate()
+                .alpha(0f)
+                .setDuration(INTRO_TO_MENU_FADE_MS)
+                .withEndAction(() -> {
+                    try { root.removeView(blackOverlay); } catch (Throwable ignored) {}
+                })
+                .start();
+    }
+
+    private void showMainMenu() {
+        if (isFinishing() || (Build.VERSION.SDK_INT >= 17 && isDestroyed())) {
+            return;
+        }
+
+        try {
+            root.removeAllViews();
+            menuView = new MenuView(this);
+            menuView.setListener(this::openSettings);
+            root.addView(menuView,
+                    new FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.MATCH_PARENT));
+        } catch (Throwable ignored) {
+            // Never let an optional menu/art failure kill the launcher.
+            // Keep the already-visible black Android frame alive.
+            root.setBackgroundColor(Color.BLACK);
+        }
     }
 
     @Override

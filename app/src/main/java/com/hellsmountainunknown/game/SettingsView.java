@@ -79,6 +79,7 @@ public final class SettingsView extends View {
     private float maxScrollOffset = 0f;
     private float rowAreaTop = 0f, rowAreaBottom = 0f;
     private boolean isScrolling = false;
+    private boolean consumedByTab = false;
     private float touchStartY = 0f;
     private float scrollStartOffset = 0f;
     private static final float TAP_SLOP = 16f;
@@ -441,6 +442,18 @@ public final class SettingsView extends View {
         RectF panel = new RectF(w * 0.06f, h * 0.08f, w * 0.94f, h * 0.92f);
 
         if (e.getAction() == MotionEvent.ACTION_DOWN) {
+            consumedByTab = false;
+            for (int i = 0; i < tabs.length; i++) {
+                if (tabRect(panel, i).contains(e.getX(), e.getY())) {
+                    consumedByTab = true;
+                    if (tabs[i] != activeTab) {
+                        activeTab = tabs[i];
+                        rebuildRows();
+                    }
+                    invalidate();
+                    return true;
+                }
+            }
             for (Row row : currentRows) {
                 if (row.type == RowType.SLIDER && e.getY() >= row.top && e.getY() <= row.bottom) {
                     draggingSlider = row;
@@ -456,6 +469,7 @@ public final class SettingsView extends View {
             }
             return true;
         } else if (e.getAction() == MotionEvent.ACTION_MOVE) {
+            if (consumedByTab) return true; // a tab already switched on DOWN - ignore the rest of this gesture
             if (draggingSlider != null) {
                 updateSliderFromTouch(draggingSlider, panel, e.getX());
                 invalidate();
@@ -469,6 +483,10 @@ public final class SettingsView extends View {
             }
             return true;
         } else if (e.getAction() == MotionEvent.ACTION_UP || e.getAction() == MotionEvent.ACTION_CANCEL) {
+            if (consumedByTab) {
+                consumedByTab = false;
+                return true;
+            }
             if (draggingSlider != null) {
                 draggingSlider = null;
                 return true;
