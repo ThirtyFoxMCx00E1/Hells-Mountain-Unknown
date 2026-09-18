@@ -76,7 +76,7 @@ public class MainActivity extends android.app.Activity {
             }, 900);
         }
 
-        mainHandler.post(this::startStudioIntro);
+        mainHandler.post(this::showLogoSplash);
 
     }
 
@@ -92,7 +92,58 @@ public class MainActivity extends android.app.Activity {
      */
     private static final long INTRO_FADE_IN_MS = 7000L;
     private static final long INTRO_FADE_OFF_MS = 6000L;
-    private static final long INTRO_TO_MENU_FADE_MS = 3000L;
+    private static final long INTRO_TO_MENU_FADE_MS = 9000L;
+
+    // Standalone logo splash, shown first, before the video - reuses the
+    // same asset and timing feel as MenuView's own intro_logo.png sequence
+    // (which is now skipped there via MenuView(this, true) so it isn't
+    // shown twice).
+    private static final long LOGO_BLACK_MS = 650L;
+    private static final long LOGO_FADE_IN_MS = 900L;
+    private static final long LOGO_HOLD_MS = 800L;
+    private static final long LOGO_FADE_OUT_MS = 950L;
+
+    private void showLogoSplash() {
+        if (isFinishing() || (Build.VERSION.SDK_INT >= 17 && isDestroyed())) return;
+
+        android.widget.ImageView logoView = null;
+        try {
+            android.graphics.Bitmap bitmap;
+            try (java.io.InputStream in = getAssets().open("menu/intro_logo.png")) {
+                bitmap = android.graphics.BitmapFactory.decodeStream(in);
+            }
+            if (bitmap != null) {
+                logoView = new android.widget.ImageView(this);
+                logoView.setImageBitmap(bitmap);
+                logoView.setScaleType(android.widget.ImageView.ScaleType.CENTER_INSIDE);
+                logoView.setAlpha(0f);
+                root.addView(logoView, new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+            }
+        } catch (Throwable t) {
+            android.util.Log.e("HellsMountainUnknown", "Logo splash asset failed to load, skipping", t);
+        }
+
+        if (logoView == null) {
+            mainHandler.post(this::startStudioIntro);
+            return;
+        }
+
+        final android.widget.ImageView finalLogoView = logoView;
+        mainHandler.postDelayed(() -> {
+            if (isFinishing() || (Build.VERSION.SDK_INT >= 17 && isDestroyed())) return;
+            finalLogoView.animate().alpha(1f).setDuration(LOGO_FADE_IN_MS).withEndAction(() ->
+                mainHandler.postDelayed(() -> {
+                    if (isFinishing() || (Build.VERSION.SDK_INT >= 17 && isDestroyed())) return;
+                    finalLogoView.animate().alpha(0f).setDuration(LOGO_FADE_OUT_MS).withEndAction(() -> {
+                        try { root.removeView(finalLogoView); } catch (Throwable ignored) {}
+                        startStudioIntro();
+                    }).start();
+                }, LOGO_HOLD_MS)
+            ).start();
+        }, LOGO_BLACK_MS);
+    }
+
 
     private void startStudioIntro() {
         if (isFinishing() || (Build.VERSION.SDK_INT >= 17 && isDestroyed())) return;
@@ -138,11 +189,11 @@ public class MainActivity extends android.app.Activity {
         }
 
         try {
-            menuView = new MenuView(this);
+            menuView = new MenuView(this, true);
             menuView.setListener(this::openSettings);
             // Insert below the still-opaque black overlay so the overlay
-            // fading out is what reveals the menu (and its own existing
-            // logo intro underneath).
+            // fading out is what reveals the menu. skipIntro=true since
+            // the logo already played standalone before the video.
             root.addView(menuView, 0, new FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         } catch (Throwable ignored) {

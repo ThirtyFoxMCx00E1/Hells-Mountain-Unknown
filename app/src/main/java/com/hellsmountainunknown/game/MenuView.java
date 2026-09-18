@@ -92,8 +92,22 @@ public final class MenuView extends View {
     private Listener listener;
     public void setListener(Listener l) { this.listener = l; }
 
+    private boolean skipIntro = false;
+
     public MenuView(Context context) {
+        this(context, false);
+    }
+
+    /**
+     * @param skipIntro true if the intro_logo.png fade sequence already
+     *                  played elsewhere (MainActivity's studio-intro
+     *                  sequence now shows it before this view is even
+     *                  constructed) - jumps straight to the interactive
+     *                  menu instead of showing it a second time.
+     */
+    public MenuView(Context context, boolean skipIntro) {
         super(context);
+        this.skipIntro = skipIntro;
         setFocusable(true);
         setClickable(true);
         p.setTypeface(Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL));
@@ -429,7 +443,7 @@ public final class MenuView extends View {
         final float w = getWidth();
         final float h = getHeight();
         final long now = SystemClock.uptimeMillis();
-        final long introTotal = BLACK_MS + FADE_IN_MS + HOLD_MS + FADE_OUT_MS;
+        final long introTotal = skipIntro ? 0L : (BLACK_MS + FADE_IN_MS + HOLD_MS + FADE_OUT_MS);
         final long elapsed = now - startedAt;
 
         c.drawColor(Color.BLACK);
